@@ -5,91 +5,77 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Random;
 
+/**
+ * La classe ServeurMastermind représente le serveur du jeu Mastermind.
+ */
 public class ServeurMastermind extends Thread {
     final static int port = 7007;
-
-    private static Random RAND = new Random();
-
     Socket s;
 
+    /**
+     * Initialise une nouvelle instance du serveur Mastermind avec le socket spécifié.
+     *
+     * @param s Le socket utilisé pour la communication avec le client.
+     */
     ServeurMastermind(Socket s) {
         this.s = s;
     }
 
-    public static ArrayList<Integer> genereReponse(int nbDigit) {
-        ArrayList<Integer> ret = new ArrayList<Integer>();
-        for (int i = 0 ; i < nbDigit ; i ++) {
-            ret.add(RAND.nextInt(0, 10));
-        }
-        return ret;
-    }
-
-    public static String ecrisReponse(ArrayList<Integer> reponse, String essai) {
-        StringBuffer s=new StringBuffer();
-        String[] tabEssai = essai.split("");
-        for (int i = 0 ; i < reponse.size() ; i ++) {
-            if (Integer.parseInt(tabEssai[i]) == reponse.get(i))
-                s.append(reponse.get(i));
-            else if (reponse.contains(Integer.parseInt(tabEssai[i])))
-                s.append('X');
-            else
-                s.append('-');
-        }
-        return s.toString();
-    }
-
-    public static boolean bonneReponse(ArrayList<Integer> reponse, String essai) {
-        String[] tabEssai = essai.split("");
-        for(int i = 0 ; i < tabEssai.length ; i ++) {
-            if (Integer.parseInt(tabEssai[i]) != reponse.get(i))
-                return false;
-        }
-        return true;
-    }
-
-
+    /**
+     * Exécute le thread du serveur, gérant la communication avec le client.
+     */
     public void run() {
         try {
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(s.getInputStream()));
             PrintWriter out = new PrintWriter(s.getOutputStream());
+
+            // Envoie les messages d'accueil au client
             out.println("!! Jeu du mastermind !!");
             out.println("Essayez de deviner le nombre de 6 chiffres que j’ai choisi ! \n");
             out.flush();
 
+            // Initialise une nouvelle partie Mastermind
+            MastermindGame game = new MastermindGame();
             String line = in.readLine();
-            final int nbEssaisMax = Integer.parseInt(line);
-            int nbEssais = 0;
+            game.setNbEssaiMax(Integer.parseInt(line));
 
-            ArrayList<Integer> reponse = genereReponse(6);
-            System.out.println("Réponse : " + reponse);
+            System.out.println("Réponse : " + game.toString());
 
-            do {
+            // Continue la partie jusqu'à ce qu'elle se termine
+            while(!game.finPartie(line)) {
                 line = in.readLine();
-                nbEssais ++;
 
                 if (line == null)
                     break;
                 if (line.equals("quit"))
                     break;
+
                 try {
+                    // Propose la réponse du client et gère la logique du jeu
+                    game.proposeReponse(line);
+
                     System.out.println("Réponse du client : " + line + "\n");
-                    if (bonneReponse(reponse, line)) {
+                    if (game.timeout()) {
+                        System.out.println("Fin de partie.");
+                        out.println("Fin de partie ! Plus d'essais..");
+                        out.flush();
+                        break;
+                    }
+                    else if (game.bonneReponse(line)) {
                         System.out.println("Fin de partie.");
                         out.println("Fin de partie ! Bien joué !");
                         out.flush();
                         break;
                     }
                     else
-                        out.println(ecrisReponse(reponse, line));
+                        out.println(game.renvoieReponse(line));
                 } catch (Exception e) {
                     out.println("Réponse au mauvais format");
                 }
                 out.flush();
-            } while(nbEssais <= nbEssaisMax);
+            }
             s.close();
         }
         catch (Exception e) {
@@ -97,9 +83,17 @@ public class ServeurMastermind extends Thread {
         }
     }
 
+    /**
+     * Le point d'entrée principal pour le serveur Mastermind.
+     *
+     * @param args Les arguments de la ligne de commande (non utilisés dans cette implémentation).
+     */
     public static void main(String[] args) {
         try {
+            // Initialise le socket passif pour écouter les connexions entrantes
             ServerSocket passiveSocket = new ServerSocket(port);
+
+            // Accepte les connexions entrantes et démarre un nouveau thread pour chaque client
             while (true) {
                 Socket activeSocket = passiveSocket.accept();
                 ServeurMastermind s = new ServeurMastermind(activeSocket);
@@ -110,4 +104,3 @@ public class ServeurMastermind extends Thread {
         }
     }
 }
-

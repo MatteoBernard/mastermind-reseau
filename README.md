@@ -10,3 +10,4 @@ Projet universitaire, jeu du mastermind en réseau, version TCP.
 ## Outils et technologies utilisées
 - Java
 - IntelliJIdea
+- Protocole TCP, Socket
